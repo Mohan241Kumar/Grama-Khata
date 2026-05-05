@@ -308,7 +308,13 @@ function GramaAIScreen({ customers, transactions, merchant, suppliers, supplierT
     if (!targetCustomer && !targetSupplier) setIndividualReminder(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = ((import.meta as any).env?.VITE_GEMINI_API_KEY as string) || (process.env.GEMINI_API_KEY as string);
+      
+      if (!apiKey) {
+        throw new Error("Missing Gemini API Key");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       
       const customerSummaries = customers.filter(c => c.pendingAmount !== 0).map(c => {
         const cTransactions = transactions.filter(t => t.customerId === c.id);
