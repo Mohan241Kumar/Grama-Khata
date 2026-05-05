@@ -1,0 +1,144 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(merchantId) {
+      return isSignedIn() && request.auth.uid == merchantId && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function isOwnerNoVerify(merchantId) {
+      return isSignedIn() && request.auth.uid == merchantId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Helpers
+    function isValidMerchant(data, isUpdate) {
+      return data.keys().hasAll(['shopkeeperName', 'shopName', 'phone']) &&
+        data.shopkeeperName is string && data.shopkeeperName.size() > 0 && data.shopkeeperName.size() <= 100 &&
+        data.shopName is string && data.shopName.size() > 0 && data.shopName.size() <= 100 &&
+        data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 20 &&
+        (!data.keys().hasAll(['photoURL']) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
+        (!data.keys().hasAll(['qrCodeURL']) || (data.qrCodeURL is string && data.qrCodeURL.size() <= 1000)) &&
+        (!data.keys().hasAll(['upiId']) || (data.upiId is string && data.upiId.size() <= 100)) &&
+        (!data.keys().hasAll(['preferences']) || data.preferences is map) &&
+        (!data.keys().hasAll(['updatedAt']) || data.updatedAt == request.time || (isUpdate && data.updatedAt == resource.data.updatedAt)) &&
+        (isUpdate ? (!data.keys().hasAll(['createdAt']) || data.createdAt == resource.data.createdAt) : (!data.keys().hasAll(['createdAt']) || data.createdAt == request.time));
+    }
+
+    function isValidCustomer(data, isUpdate) {
+      return data.keys().hasAll(['name', 'phone', 'pendingAmount']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.phone is string && data.phone.size() <= 15 &&
+        data.pendingAmount is number &&
+        (!data.keys().hasAll(['notes']) || (data.notes is string && data.notes.size() <= 2000)) &&
+        (!data.keys().hasAll(['address']) || (data.address is string && data.address.size() <= 500)) &&
+        (!data.keys().hasAll(['photoURL']) || (data.photoURL is string && data.photoURL.size() <= 2000)) &&
+        (!data.keys().hasAll(['avatarSeed']) || (data.avatarSeed is string && data.avatarSeed.size() <= 100)) &&
+        (!data.keys().hasAll(['id']) || data.id is string) &&
+        (!data.keys().hasAll(['dueDate']) || (data.dueDate == null || data.dueDate is timestamp)) &&
+        (!data.keys().hasAll(['updatedAt']) || data.updatedAt == request.time || (isUpdate && data.updatedAt == resource.data.updatedAt)) &&
+        (isUpdate ? (!data.keys().hasAll(['createdAt']) || data.createdAt == resource.data.createdAt) : (!data.keys().hasAll(['createdAt']) || data.createdAt == request.time));
+    }
+
+    function isValidSupplier(data, isUpdate) {
+      return data.keys().hasAll(['name', 'phone', 'pendingAmount']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.phone is string && data.phone.size() <= 15 &&
+        data.pendingAmount is number &&
+        (!data.keys().hasAll(['notes']) || (data.notes is string && data.notes.size() <= 2000)) &&
+        (!data.keys().hasAll(['address']) || (data.address is string && data.address.size() <= 500)) &&
+        (!data.keys().hasAll(['avatarSeed']) || (data.avatarSeed is string && data.avatarSeed.size() <= 100)) &&
+        (!data.keys().hasAll(['photoURL']) || (data.photoURL is string && data.photoURL.size() <= 2000)) &&
+        (!data.keys().hasAll(['id']) || data.id is string) &&
+        (!data.keys().hasAll(['updatedAt']) || data.updatedAt == request.time || (isUpdate && data.updatedAt == resource.data.updatedAt)) &&
+        (isUpdate ? (!data.keys().hasAll(['createdAt']) || data.createdAt == resource.data.createdAt) : (!data.keys().hasAll(['createdAt']) || data.createdAt == request.time));
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['customerId', 'amount', 'type', 'note', 'date']) &&
+        data.customerId is string &&
+        data.amount is number && data.amount > 0 &&
+        (data.type == 'credit' || data.type == 'payment' || data.type == 'purchase') &&
+        (!data.keys().hasAll(['category']) || (data.category == null || (data.category is string && data.category.size() <= 100))) &&
+        data.note is string && data.note.size() <= 500 &&
+        (!data.keys().hasAll(['notes']) || (data.notes == null || (data.notes is string && data.notes.size() <= 1000))) &&
+        (!data.keys().hasAll(['paymentMode']) || (data.paymentMode == null || data.paymentMode in ['cash', 'upi', 'bank'])) &&
+        (data.date == request.time || data.date is timestamp);
+    }
+
+    function isValidSupplierTransaction(data) {
+      return data.keys().hasAll(['supplierId', 'amount', 'type', 'note', 'date']) &&
+        data.supplierId is string &&
+        data.amount is number && data.amount > 0 &&
+        (data.type == 'purchase' || data.type == 'payment') &&
+        (!data.keys().hasAll(['category']) || (data.category == null || (data.category is string && data.category.size() <= 100))) &&
+        (!data.keys().hasAll(['paymentMode']) || (data.paymentMode == null || data.paymentMode in ['cash', 'upi', 'bank'])) &&
+        data.note is string && data.note.size() <= 500 &&
+        (data.date == request.time || data.date is timestamp);
+    }
+
+    function isValidLoginHistory(data) {
+      return data.keys().hasAll(['timestamp', 'device', 'status']) &&
+        data.status in ['success', 'failed'] &&
+        data.device is string && data.device.size() <= 500 &&
+        (!data.keys().hasAll(['ip']) || (data.ip is string && data.ip.size() <= 100)) &&
+        data.timestamp == request.time;
+    }
+
+    // Rules
+    match /merchants/{merchantId} {
+      allow get: if isValidId(merchantId) && isOwnerNoVerify(merchantId);
+      allow create: if isValidId(merchantId) && isOwnerNoVerify(merchantId);
+      allow update: if isValidId(merchantId) && isOwnerNoVerify(merchantId);
+      allow delete: if isValidId(merchantId) && isOwnerNoVerify(merchantId);
+
+      match /customers/{customerId} {
+        allow list: if isOwnerNoVerify(merchantId);
+        allow get: if isValidId(customerId) && isOwnerNoVerify(merchantId);
+        allow create: if isValidId(customerId) && isOwnerNoVerify(merchantId);
+        allow update: if isValidId(customerId) && isOwnerNoVerify(merchantId);
+        allow delete: if isValidId(customerId) && isOwnerNoVerify(merchantId);
+      }
+
+      match /suppliers/{supplierId} {
+        allow list: if isOwnerNoVerify(merchantId);
+        allow get: if isValidId(supplierId) && isOwnerNoVerify(merchantId);
+        allow create: if isValidId(supplierId) && isOwnerNoVerify(merchantId);
+        allow update: if isValidId(supplierId) && isOwnerNoVerify(merchantId);
+        allow delete: if isValidId(supplierId) && isOwnerNoVerify(merchantId);
+      }
+
+      match /transactions/{transactionId} {
+        allow list: if isOwnerNoVerify(merchantId);
+        allow get: if isValidId(transactionId) && isOwnerNoVerify(merchantId);
+        allow create: if isValidId(transactionId) && isOwnerNoVerify(merchantId);
+        allow delete: if isOwnerNoVerify(merchantId);
+      }
+
+      match /supplierTransactions/{transactionId} {
+        allow list: if isOwnerNoVerify(merchantId);
+        allow get: if isValidId(transactionId) && isOwnerNoVerify(merchantId);
+        allow create: if isValidId(transactionId) && isOwnerNoVerify(merchantId);
+        allow delete: if isOwnerNoVerify(merchantId);
+      }
+
+      match /loginHistory/{historyId} {
+        allow list: if isOwnerNoVerify(merchantId);
+        allow create: if isValidId(historyId) && isOwnerNoVerify(merchantId) && isValidLoginHistory(request.resource.data);
+        allow delete: if isOwnerNoVerify(merchantId);
+      }
+    }
+  }
+}

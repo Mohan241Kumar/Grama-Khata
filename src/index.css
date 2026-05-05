@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Kannada:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Noto Sans Kannada", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  @apply bg-gray-50 antialiased text-gray-900;
+}
+
+/* Custom shadow for cards */
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+}
+
+.font-kannada {
+  font-family: 'Noto Sans Kannada', sans-serif;
+}

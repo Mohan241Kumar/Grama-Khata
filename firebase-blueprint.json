@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "Merchant": {
+      "title": "Merchant",
+      "description": "Details of the shopkeeper and their business",
+      "type": "object",
+      "properties": {
+        "shopkeeperName": { "type": "string" },
+        "shopName": { "type": "string" },
+        "phone": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "qrCodeURL": { "type": "string" },
+        "upiId": { "type": "string", "description": "VPA/UPI ID for payments" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["shopkeeperName", "shopName", "phone"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer of the merchant",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "pendingAmount": { "type": "number" },
+        "address": { "type": "string" },
+        "notes": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "avatarSeed": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time", "description": "Specific due date for outstanding balance" }
+      },
+      "required": ["name", "pendingAmount"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Wholesaler or Supplier of the merchant",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "pendingAmount": { "type": "number", "description": "Negative means merchant owes supplier, positive means advanced payment" },
+        "address": { "type": "string" },
+        "notes": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "avatarSeed": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "pendingAmount"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Credit or payment transaction with a customer",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["credit", "payment", "purchase"] },
+        "category": { "type": "string" },
+        "note": { "type": "string" },
+        "notes": { "type": "string" },
+        "paymentMode": { "type": "string", "enum": ["cash", "upi", "bank"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "amount", "type", "date"]
+    },
+    "SupplierTransaction": {
+      "title": "Supplier Transaction",
+      "description": "Purchase or payment transaction with a supplier",
+      "type": "object",
+      "properties": {
+        "supplierId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["purchase", "payment"], "description": "purchase increases debt, payment decreases debt" },
+        "category": { "type": "string" },
+        "note": { "type": "string" },
+        "paymentMode": { "type": "string", "enum": ["cash", "upi", "bank"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["supplierId", "amount", "type", "date"]
+    },
+    "LoginHistory": {
+      "title": "Login History",
+      "description": "Record of user login attempts",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "device": { "type": "string" },
+        "ip": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "failed"] }
+      },
+      "required": ["timestamp", "status"]
+    }
+  },
+  "firestore": {
+    "/merchants/{merchantId}": {
+      "schema": "Merchant",
+      "description": "Merchant profile"
+    },
+    "/merchants/{merchantId}/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customers belonging to the merchant"
+    },
+    "/merchants/{merchantId}/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Suppliers belonging to the merchant"
+    },
+    "/merchants/{merchantId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Transactions belonging to the merchant"
+    },
+    "/merchants/{merchantId}/supplierTransactions/{transactionId}": {
+      "schema": "SupplierTransaction",
+      "description": "Supplier transactions belonging to the merchant"
+    },
+    "/merchants/{merchantId}/loginHistory/{historyId}": {
+      "schema": "LoginHistory",
+      "description": "Login attempts history"
+    }
+  }
+}
