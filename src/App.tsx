@@ -308,10 +308,15 @@ function GramaAIScreen({ customers, transactions, merchant, suppliers, supplierT
     if (!targetCustomer && !targetSupplier) setIndividualReminder(null);
 
     try {
-      const apiKey = ((import.meta as any).env?.VITE_GEMINI_API_KEY as string) || (process.env.GEMINI_API_KEY as string);
+      let apiKey = ((import.meta as any).env?.VITE_GEMINI_API_KEY as string) || (process.env.GEMINI_API_KEY as string);
       
-      if (!apiKey) {
-        throw new Error("Missing Gemini API Key");
+      // Clean up quotes or handle placeholders
+      if (apiKey) {
+        apiKey = apiKey.replace(/^["']|["']$/g, '');
+      }
+
+      if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey === "undefined") {
+        throw new Error("API_KEY_MISSING");
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -532,15 +537,25 @@ Risk Level: [Low / Medium / High]
         setInsights(prev => ({ ...prev, [tab]: text }));
       }
     } catch (err: any) {
-      console.error(err);
-      if (err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED')) {
+      console.error("AI Error:", err);
+      const errorMsg = err?.message || String(err);
+      
+      if (errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
         setError(isKn 
           ? "ಕ್ಷಮಿಸಿ, ಎಐ ಮಿತಿ ಮುಗಿದಿದೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಪ್ರಯತ್ನಿಸಿ." 
           : "AI limit reached. Please wait a few minutes and try again.");
+      } else if (errorMsg.includes('API_KEY_MISSING')) {
+        setError(isKn
+          ? "ಎಐ ಕೀ ಇಲ್ಲ. ದಯವಿಟ್ಟು Vercel ನಲ್ಲಿ VITE_GEMINI_API_KEY ಎನ್ವಿರಾನ್‌ಮೆಂಟ್ ವೇರಿಯಬಲ್ ಸೇರಿಸಿ."
+          : "Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your Vercel Environment Variables.");
+      } else if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+         setError(isKn
+          ? "ಕ್ಷಮಿಸಿ, ಈ ಎಐ ಮಾದರಿ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ಡೆವಲಪರ್ ಅನ್ನು ಸಂಪರ್ಕಿಸಿ."
+          : "AI Model not found. Please contact support or check your API key permissions.");
       } else {
         setError(isKn 
-          ? "ಎಐ ಸಂಪರ್ಕದಲ್ಲಿ ತೊಂದರೆಯಾಗಿದೆ. ಇಂಟರ್ನೆಟ್ ಪರಿಶೀಲಿಸಿ." 
-          : "AI connection issue. Check internet.");
+          ? `ಎಐ ತೊಂದರೆ: ${errorMsg.substring(0, 50)}...` 
+          : `AI issue: ${errorMsg.substring(0, 50)}...`);
       }
     } finally {
       setLoading(false);
@@ -2368,86 +2383,166 @@ function SupplierCard({ supplier, compact, showCurrency = true, onClick }: { sup
  */
 function SplashScreen({ onFinish }: { onFinish: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onFinish, 3000);
+    const timer = setTimeout(onFinish, 3500);
     return () => clearTimeout(timer);
   }, [onFinish]);
 
+  const particles = useMemo(() => Array.from({ length: 15 }), []);
+
   return (
-    <div className="fixed inset-0 bg-[#006B4D] flex flex-col items-center justify-center text-white overflow-hidden">
-      {/* Background Image with Overlay */}
-      <div 
-        className="absolute inset-0 opacity-20 bg-cover bg-center mix-blend-overlay scale-110 animate-pulse-slow"
-        style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1589367920969-ab8e050bdda4?auto=format&fit=crop&q=80&w=1200")' }}
-      />
-      
-      {/* Radial Gradient for depth */}
-      <div className="absolute inset-0 bg-radial-[circle_at_center,_var(--tw-gradient-stops)] from-transparent via-[#006B4D]/20 to-[#004D37]/80" />
+    <div className="fixed inset-0 bg-[#004D37] flex flex-col items-center justify-center text-white overflow-hidden">
+      {/* Immersive Background */}
+      <div className="absolute inset-0 z-0">
+        <div 
+          className="absolute inset-0 opacity-15 bg-cover bg-center mix-blend-soft-light scale-105 animate-pulse-slow"
+          style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1574621100236-d25b64cfca60?auto=format&fit=crop&q=80&w=1200")' }}
+        />
+        <div className="absolute inset-0 bg-radial-[circle_at_center,_var(--tw-gradient-stops)] from-transparent via-[#006B4D]/30 to-[#004D37]/90" />
+      </div>
+
+      {/* Floating Animated Particles */}
+      <div className="absolute inset-0 pointer-events-none opacity-40">
+        {particles.map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ 
+              x: Math.random() * 100 + "%", 
+              y: Math.random() * 100 + "%",
+              opacity: 0,
+              scale: Math.random() * 0.5 + 0.5
+            }}
+            animate={{ 
+              y: [null, "-20%", "120%"],
+              opacity: [0, 0.4, 0]
+            }}
+            transition={{ 
+              duration: 10 + Math.random() * 20, 
+              repeat: Infinity, 
+              ease: "linear",
+              delay: Math.random() * 10
+            }}
+            className="absolute w-1 h-1 bg-white rounded-full blur-[1px]"
+          />
+        ))}
+      </div>
 
       <motion.div 
-        initial={{ scale: 0.8, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: "easeOut" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         className="relative z-10 flex flex-col items-center"
       >
-        <div className="w-40 h-40 bg-white/10 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center border border-white/30 shadow-2xl relative mb-12">
-          <div className="absolute inset-0 bg-linear-to-br from-white/20 to-transparent rounded-[2.5rem]" />
-          <div className="relative">
-            <motion.div
-              animate={{ 
-                rotate: [0, 5, -5, 0],
-                y: [0, -5, 0]
-              }}
-              transition={{ 
-                duration: 4, 
-                repeat: Infinity, 
-                ease: "easeInOut" 
-              }}
-            >
-              <Store size={80} className="text-white drop-shadow-lg" strokeWidth={1} />
-            </motion.div>
-            <motion.div 
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
-              className="absolute -bottom-3 -right-3 bg-white rounded-2xl p-2.5 shadow-xl border-2 border-[#006B4D]/20"
-            >
-              <IndianRupee size={24} className="text-[#006B4D]" strokeWidth={3} />
-            </motion.div>
+        <motion.div 
+          initial={{ scale: 0.7, opacity: 0, y: 30 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          className="relative mb-12"
+        >
+          <div className="w-44 h-44 bg-white/5 backdrop-blur-3xl rounded-[3rem] flex items-center justify-center border border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] relative">
+            <div className="absolute inset-0 bg-linear-to-br from-white/10 to-transparent rounded-[3rem]" />
+            <div className="relative">
+              <motion.div
+                animate={{ 
+                  rotate: [0, 5, -5, 0],
+                  y: [0, -4, 0]
+                }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Store size={88} className="text-white drop-shadow-2xl" strokeWidth={1} />
+              </motion.div>
+              <motion.div 
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
+                className="absolute -bottom-4 -right-4 bg-white rounded-2xl p-3 shadow-2xl border-4 border-[#004D37]/10"
+              >
+                <IndianRupee size={28} className="text-[#006B4D]" strokeWidth={3} />
+              </motion.div>
+            </div>
           </div>
-        </div>
+          
+          {/* Decorative rings */}
+          <motion.div 
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1.5, opacity: 0.1 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+            className="absolute inset-0 border-2 border-white rounded-[3rem]"
+          />
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="text-center space-y-3"
+          transition={{ delay: 0.4, duration: 1 }}
+          className="text-center"
         >
-          <h1 className="text-5xl font-black tracking-tighter text-white drop-shadow-md">
-            Grama<span className="text-[#A7F3D0]">-</span>Khata
-          </h1>
-          <div className="flex items-center justify-center gap-3">
-            <div className="h-[1px] w-8 bg-white/30" />
-            <p className="text-xs font-black uppercase tracking-[0.4em] text-white/70">Smart Village Ledger</p>
-            <div className="h-[1px] w-8 bg-white/30" />
+          <div className="mb-2">
+            <motion.h1 
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+              className="text-6xl font-black tracking-tighter text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)]"
+            >
+              Grama<span className="text-[#BBF7D0]">-</span>Khata
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="text-2xl font-black text-[#BBF7D0]/60 mt-1 Kannada-font"
+            >
+              ಗ್ರಾಮ-ಖಾತಾ
+            </motion.p>
+          </div>
+          
+          <div className="flex items-center justify-center gap-4 mt-6">
+            <motion.div 
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 1, duration: 0.8 }}
+              className="h-[1px] w-12 bg-linear-to-r from-transparent to-white/40 origin-right" 
+            />
+            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-white/50">Smart Village Ledger • ಸ್ಮಾರ್ಟ್ ಹಳ್ಳಿ ಲೆಡ್ಜರ್</p>
+            <motion.div 
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 1, duration: 0.8 }}
+              className="h-[1px] w-12 bg-linear-to-l from-transparent to-white/40 origin-left" 
+            />
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Loading Progress */}
-      <div className="absolute bottom-24 flex flex-col items-center gap-4">
-        <div className="w-64 h-1 bg-white/10 rounded-full overflow-hidden">
+      {/* Modern Wave Loading Progress */}
+      <div className="absolute bottom-20 flex flex-col items-center gap-6 w-full">
+        <div className="w-56 h-1 bg-white/5 rounded-full overflow-hidden relative border border-white/5">
           <motion.div 
             initial={{ x: "-100%" }}
             animate={{ x: "0%" }}
-            transition={{ duration: 3, ease: "easeInOut" }}
-            className="h-full w-full bg-linear-to-r from-[#A7F3D0] to-white rounded-full"
+            transition={{ duration: 3.5, ease: "linear" }}
+            className="absolute inset-0 h-full w-full bg-linear-to-r from-[#006B4D] via-[#A7F3D0] to-[#006B4D]"
           />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-white/40 animate-pulse">Initializing Data...</p>
+        
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-[9px] font-black tracking-widest text-[#BBF7D0]/40 uppercase animate-pulse">
+            Initializing Secure Ledger • ಡೇಟಾವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ
+          </p>
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                animate={{ opacity: [0.2, 1, 0.2] }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                className="w-1 h-1 bg-[#BBF7D0] rounded-full"
+              />
+            ))}
+          </div>
+        </div>
       </div>
       
-      {/* Bottom Bar Indicator (Standard App look) */}
-      <div className="absolute bottom-2 w-32 h-1 bg-white/20 rounded-full" />
+      {/* Dynamic Glow and subtle light leaks */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white opacity-[0.03] blur-[150px] -translate-y-1/2 translate-x-1/2 rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#BBF7D0] opacity-[0.03] blur-[150px] translate-y-1/2 -translate-x-1/2 rounded-full pointer-events-none" />
     </div>
   );
 }
@@ -4722,10 +4817,10 @@ const deleteCollection = async (collectionRef: any) => {
 function NotificationToast({ title, body, onClose }: { title: string, body: string, onClose: () => void, key?: string | number }) {
   return (
     <motion.div 
-      initial={{ opacity: 0, y: -20, x: '-50%', scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, x: '-50%', scale: 1 }}
-      exit={{ opacity: 0, y: -20, x: '-50%', scale: 0.95 }}
-      className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-sm bg-white dark:bg-[#1E293B] rounded-[24px] shadow-2xl p-4 border border-[#006B4D]/20 flex items-start gap-4 overflow-hidden"
+      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.95 }}
+      className="pointer-events-auto w-full max-w-sm bg-white dark:bg-[#1E293B] rounded-[24px] shadow-2xl p-4 border border-[#006B4D]/20 flex items-start gap-4 overflow-hidden relative"
     >
       <div className="w-10 h-10 bg-[#006B4D]/10 rounded-full flex items-center justify-center shrink-0">
         <Bell className="text-[#006B4D]" size={20} />
@@ -6701,17 +6796,19 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Global In-App Notifications */}
-      <AnimatePresence>
-        {toasts.map(toast => (
-          <NotificationToast 
-            key={toast.id}
-            title={toast.title}
-            body={toast.body}
-            onClose={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-          />
-        ))}
-      </AnimatePresence>
+      {/* Global In-App Notifications - Centered Container */}
+      <div className="fixed top-6 left-0 right-0 z-[9999] flex flex-col items-center gap-3 px-4 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <NotificationToast 
+              key={toast.id}
+              title={toast.title}
+              body={toast.body}
+              onClose={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+            />
+          ))}
+        </AnimatePresence>
+      </div>
 
       {isRegistering && user && (
         <RegistrationModal 
